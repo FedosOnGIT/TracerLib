@@ -1,4 +1,4 @@
-package tracer
+package uploadBatch
 
 import (
 	"encoding/json"
@@ -10,13 +10,7 @@ import (
 )
 
 const (
-	Vendor                = "Linux"
-	Language              = "go"
-	ProductionEnvironment = "production"
-	MessageType           = "CRASH"
-	CrashIDSource         = "message"
-	StacktraceKey         = "stackTrace"
-	LoggerName            = "TracerLogger"
+	LoggerName = "UploadBatchTracerLogger"
 )
 
 type Encoder struct {
@@ -31,48 +25,38 @@ type Encoder struct {
 	environment string
 	module      string
 	service     string
-	tags        []string
 }
 
-func NewEncoder(module, service string, tags map[string]string, flags Flags) (*Encoder, error) {
+func newEncoder(configuration Configuration) (*Encoder, error) {
 	jsonEncoder := zapcore.NewJSONEncoder(
 		zapcore.EncoderConfig{
 			EncodeLevel:    zapcore.CapitalLevelEncoder,
 			EncodeTime:     zapcore.ISO8601TimeEncoder,
 			EncodeDuration: zapcore.StringDurationEncoder,
 			EncodeCaller:   zapcore.ShortCallerEncoder,
-			StacktraceKey:  StacktraceKey,
+			StacktraceKey:  "stackTrace",
 		},
 	)
 
-	versionCode, err := generateVersionCode(flags.VersionName)
+	versionCode, err := generateVersionCode(configuration.VersionName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get version code: %w", err)
 	}
 
-	environment := flags.Environment
-	if environment == "" {
-		environment = ProductionEnvironment
-	}
-
-	var tracerTags []string
-	for tagKey, tagVal := range tags {
-		tracerTags = append(tracerTags, fmt.Sprintf("%s=%s", tagKey, tagVal))
-	}
+	environment := configuration.Environment
 
 	return &Encoder{
 		Encoder:     jsonEncoder,
-		osVersion:   flags.OsVersion,
-		vendor:      Vendor,
-		host:        flags.Host,
-		dc:          flags.DC,
-		versionName: flags.VersionName,
+		osVersion:   configuration.OsVersion,
+		vendor:      configuration.Vendor,
+		host:        configuration.Host,
+		dc:          configuration.DataCenter,
+		versionName: configuration.VersionName,
 		versionCode: versionCode,
-		deviceID:    flags.DeviceID,
+		deviceID:    configuration.DeviceID,
 		environment: environment,
-		module:      module,
-		service:     service,
-		tags:        tracerTags,
+		module:      configuration.Module,
+		service:     configuration.Service,
 	}, nil
 }
 
@@ -91,11 +75,11 @@ func (encoder *Encoder) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field)
 	properties := LogProperties{
 		Level:         entry.Level.String(),
 		Logger:        LoggerName,
-		Language:      Language,
-		Env:           encoder.environment,
+		Language:      "go",
+		Environment:   encoder.environment,
 		Service:       encoder.service,
 		Hostname:      encoder.host,
-		DC:            encoder.dc,
+		DataCenter:    encoder.dc,
 		Message:       entry.Message,
 		ThrownMessage: getStringField(fieldMap, ThrownMessageKey),
 		RequestID:     getStringField(fieldMap, RequestIDKey),
@@ -110,11 +94,11 @@ func (encoder *Encoder) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field)
 			DeviceID:      encoder.deviceID,
 			Module:        encoder.module,
 			Properties:    properties,
-			Tags:          encoder.tags,
-			CrashIDSource: CrashIDSource,
+			Tags:          getStringArrayField(fieldMap, TagsKey),
+			CrashIDSource: "message",
 		},
 		StackTrace: entry.Stack,
-		Type:       MessageType,
+		Type:       "CRASH",
 		Timestamp:  entry.Time.Format(time.RFC3339),
 	}
 
@@ -136,6 +120,15 @@ func getStringField(fieldMap map[string]interface{}, key string) string {
 		}
 	}
 	return ""
+}
+
+func getStringArrayField(fieldMap map[string]interface{}, key string) []string {
+	if value, exists := fieldMap[key]; exists {
+		if strArray, ok := value.([]string); ok {
+			return strArray
+		}
+	}
+	return nil
 }
 
 func marshalLogMessage(logMessage LogMessage) (*buffer.Buffer, error) {
