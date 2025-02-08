@@ -1,4 +1,4 @@
-module TracerLib
+module github.com/FedosOnGIT/TracerLib
 
 go 1.23
 
