@@ -106,6 +106,7 @@ func (logger *Logger) Fatalf(message string, args ...interface{}) {
 
 func (logger *Logger) WithRequestID(requestID string) *Logger {
 	return &Logger{
+		Logger:    logger.Logger,
 		requestID: &requestID,
 		tags:      logger.tags,
 	}
@@ -118,6 +119,7 @@ func (logger *Logger) WithTag(tag, value string) *Logger {
 	}
 	tags[tag] = value
 	return &Logger{
+		Logger:    logger.Logger,
 		requestID: logger.requestID,
 		tags:      tags,
 	}
