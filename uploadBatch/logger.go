@@ -34,7 +34,7 @@ func New(out io.Writer, level zapcore.Level, configuration Configuration) (*Logg
 	)
 	core := zapcore.NewCore(encoder, syncer, levelEnabler)
 	return &Logger{
-		Logger:    zap.New(core),
+		Logger:    zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel)),
 		requestID: nil,
 		tags:      map[string]string{},
 	}, nil
