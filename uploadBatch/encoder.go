@@ -124,9 +124,16 @@ func getStringField(fieldMap map[string]interface{}, key string) string {
 
 func getStringArrayField(fieldMap map[string]interface{}, key string) []string {
 	if value, exists := fieldMap[key]; exists {
-		if strArray, ok := value.([]string); ok {
-			return strArray
+		if array, ok := value.([]interface{}); ok {
+			var stringArray []string
+			for _, element := range array {
+				if str, ok := element.(string); ok {
+					stringArray = append(stringArray, str)
+				}
+			}
+			return stringArray
 		}
+		return nil
 	}
 	return nil
 }
