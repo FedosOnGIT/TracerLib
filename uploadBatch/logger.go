@@ -20,7 +20,7 @@ type Logger struct {
 	tags      map[string]string
 }
 
-func New(out io.Writer, level zapcore.Level, configuration Configuration) (*Logger, error) {
+func New(out io.Writer, logsLevel, stacktraceLevel zapcore.Level, configuration Configuration) (*Logger, error) {
 	encoder, err := newEncoder(configuration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize tracer encoder: %w", err)
@@ -29,12 +29,12 @@ func New(out io.Writer, level zapcore.Level, configuration Configuration) (*Logg
 
 	levelEnabler := zap.LevelEnablerFunc(
 		func(lvl zapcore.Level) bool {
-			return lvl >= level
+			return lvl >= logsLevel
 		},
 	)
 	core := zapcore.NewCore(encoder, syncer, levelEnabler)
 	return &Logger{
-		Logger:    zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel)),
+		Logger:    zap.New(core, zap.AddCaller(), zap.AddStacktrace(stacktraceLevel)),
 		requestID: nil,
 		tags:      map[string]string{},
 	}, nil
